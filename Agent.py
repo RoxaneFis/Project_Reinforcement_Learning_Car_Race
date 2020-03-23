@@ -59,12 +59,18 @@ def find_index(actions, action):
 
 
 class Agent():
-    def __init__(self, env):
+
+    def load_model(self, path):
+        model = Q_model()
+        model.load_state_dict(torch.load(path))
+        self.estimate_network = model
+        self.target_network = model
+
+    def __init__(self, env, path=None):
         self.target_network = Q_model(output_dim=nb_actions, trainable=True).to(device)
         self.estimate_network = Q_model(output_dim=nb_actions, trainable=True).to(device)
         self.optimizer = optim.Adam(self.estimate_network.parameters(),lr=learning_rate)
         self.memory =ReplayBuffer(nb_actions, memory_size,batch_size,0) 
-        
         self.target_parameters = self.target_network.parameters()
         self.estimate_parameters = self.estimate_network.parameters()
         self.frame = None
@@ -74,8 +80,8 @@ class Agent():
         self.env = env
         self.t_step = 0
         self.reward =0
-
-
+        if path is not None:
+            self.load_model(path)
 
 
 
@@ -148,6 +154,7 @@ class Agent():
         loss.backward()
         self.optimizer.step()
         self.soft_update(self.estimate_network,self.target_network,TAU)
+        return done
 
     def soft_update(self, local_model, target_model, tau):
         for target_param, local_param in zip(target_model.parameters(),
