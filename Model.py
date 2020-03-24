@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools as it
 
-actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0], [0.2, 0])])
+actions = np.array( [k for k in it.product([-1, 0, 1], [0.9, 0], [0.3, 0])])
 nb_actions = len(actions)
 
 class Unflatten(nn.Module):
@@ -29,14 +29,14 @@ class Flatten(nn.Module):
 
 
 class Q_model(nn.Module):
-    def __init__(self, output_dim=nb_actions, trainable=True):
+    def __init__(self, input_dim=4,output_dim=nb_actions, trainable=True):
         super(Q_model,self).__init__()
         def size_out(in_size, kernel_size, stride):
             return (in_size - (kernel_size - 1) - 1) // stride  + 1
         
         self.model = nn.Sequential(
-                Unflatten(),
-                nn.Conv2d(in_channels=4, out_channels=8, kernel_size=7, stride=3), #46
+                Unflatten(N=-1, C=input_dim, H=96, W=96),
+                nn.Conv2d(in_channels=input_dim, out_channels=8, kernel_size=7, stride=3), #46
                 nn.LeakyReLU(inplace=True, negative_slope=0.01),
                 nn.MaxPool2d(kernel_size=2, stride=2),
                 nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, stride=1), #42

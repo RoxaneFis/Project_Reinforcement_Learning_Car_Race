@@ -25,9 +25,8 @@ from torchviz import make_dot
 from Model import Q_model
 
 
-all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0], [0.2, 0])])
+all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0], [0.3, 0])])
 nb_actions = len(all_actions)
-num_frame_stack = 4
 learning_rate = 0.001
 batch_size = 5
 memory_size = int(1e5)
@@ -38,11 +37,6 @@ TAU = 1e-3
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def initialize_deque(obs,num_frame_stack=num_frame_stack):
-    d = deque(maxlen=num_frame_stack)
-    for i in range(num_frame_stack):
-        d.appendleft(obs)
-    return d
 
 def stack_to_vector(deque : deque):
     array = np.array(deque)
@@ -65,10 +59,12 @@ class Agent():
         model.load_state_dict(torch.load(path))
         self.estimate_network = model
         self.target_network = model
+        self.target_network.eval()
+        self.estimate_network.train()
 
-    def __init__(self, env, path=None):
-        self.target_network = Q_model(output_dim=nb_actions, trainable=True).to(device)
-        self.estimate_network = Q_model(output_dim=nb_actions, trainable=True).to(device)
+    def __init__(self, env, path=None, evaluate=False, num_frame_stack=4):
+        self.target_network = Q_model(input_dim = num_frame_stack,output_dim=nb_actions, trainable=True).to(device)
+        self.estimate_network = Q_model(input_dim = num_frame_stack,output_dim=nb_actions, trainable=True).to(device)
         self.optimizer = optim.Adam(self.estimate_network.parameters(),lr=learning_rate)
         self.memory =ReplayBuffer(nb_actions, memory_size,batch_size,0) 
         self.target_parameters = self.target_network.parameters()
@@ -80,14 +76,16 @@ class Agent():
         self.env = env
         self.t_step = 0
         self.reward =0
+        self.evaluate = evaluate
+        self.num_frame_stack = num_frame_stack
         if path is not None:
             self.load_model(path)
 
 
 
-    def init_frame(self,obs,num_frame_stack=num_frame_stack):
-        d = deque(maxlen=num_frame_stack)
-        for i in range(num_frame_stack):
+    def init_frame(self,obs):
+        d = deque(maxlen=self.num_frame_stack)
+        for i in range(self.num_frame_stack):
             d.appendleft(to_grey(obs))
         return d
     
@@ -106,7 +104,7 @@ class Agent():
             stack = stack_to_vector(self.frame)
             Q_current = self.estimate_network(stack)
         self.estimate_network.train()
-        if (proba > eps):
+        if (proba > eps or self.evaluate):
                 greedy_ind = np.argmax(Q_current.detach().numpy())
                 action = all_actions[greedy_ind]
         else :
@@ -120,12 +118,6 @@ class Agent():
     def learn_from_action(self, action):
         obs_next, reward, done, info = self.env.step(action)
         self.reward=reward
-        '''
-        if reward < 0:
-            reward = reward*100
-        if reward > 0:
-            reward = reward*10
-        '''
         if(done == True):
             return done
         
@@ -134,26 +126,27 @@ class Agent():
         stack_next = stack_to_vector(self.frame)
 
 
-        self.memory.add(stack, action, reward, stack_next, done)
-        #self.memory.push({"st":stack,"at":action, "rt":reward,"st+1":stack_next})
-        if len(self.memory) < batch_size:
-            return
-        stacks, actions, rewards, stack_nexts, dones = self.memory.sample()
+        if(not self.evaluate):
+            self.memory.add(stack, action, reward, stack_next, done)
+            #self.memory.push({"st":stack,"at":action, "rt":reward,"st+1":stack_next})
+            if len(self.memory) < batch_size:
+                return
+            stacks, actions, rewards, stack_nexts, dones = self.memory.sample()
 
-        loss_function = nn.MSELoss()
-        self.estimate_network.train()
-        self.target_network.eval()
+            loss_function = nn.MSELoss()
+            self.estimate_network.train()
+            self.target_network.eval()
 
-        actions_index = torch.Tensor([find_index(all_actions,actions[i]) for i in range(batch_size)]).long()
-        predicted_targets = self.estimate_network(stacks).gather(1,actions_index.view(-1,1))
-        with torch.no_grad():
-            labels_next = self.target_network(stack_nexts).detach().max(1)[0].unsqueeze(1)
-        labels = rewards + (gamma* labels_next*(1-dones))
-        loss = loss_function(predicted_targets,labels).to(device)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.soft_update(self.estimate_network,self.target_network,TAU)
+            actions_index = torch.Tensor([find_index(all_actions,actions[i]) for i in range(batch_size)]).long()
+            predicted_targets = self.estimate_network(stacks).gather(1,actions_index.view(-1,1))
+            with torch.no_grad():
+                labels_next = self.target_network(stack_nexts).detach().max(1)[0].unsqueeze(1)
+            labels = rewards + (gamma* labels_next*(1-dones))
+            loss = loss_function(predicted_targets,labels).to(device)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.soft_update(self.estimate_network,self.target_network,TAU)
         return done
 
     def soft_update(self, local_model, target_model, tau):

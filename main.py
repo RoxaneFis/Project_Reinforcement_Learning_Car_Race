@@ -12,7 +12,7 @@ from skimage import color
 import torch.optim as optim
 from collections import deque
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from Model import Q_model
 from Agent import Agent, ReplayMemory, all_actions,nb_actions, to_grey, stack_to_vector
@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--eps_end', type=float, default=0.01)
     parser.add_argument('--model_path', type=str, default = None)
     parser.add_argument('--render', type=bool, default=False)
+    parser.add_argument('--evaluate', type=bool, default=False)
     args = parser.parse_args()
     return args
 
@@ -39,7 +40,7 @@ scores = [] # list containing score from each episode
 
 env_name = "CarRacing-v0"
 env = gym.make(env_name)
-model_path ="/Users/roxanefischer/Documents/cours/3A/Advanced_Topics_in_Artificial_Intelligence/projet/code/checkpoint_288.pth"
+model_path = None
 
 
 def train():
@@ -55,80 +56,61 @@ def train():
     eps_end= args.eps_end
     model_path = args.model_path
     render = args.render
+    evaluate = args.evaluate
 
-    i = 0
-    agent = Agent(env, model_path)
-    with open(f"test_{test_name}.txt", "w+") as f: 
-        for i_episode in tqdm(range(n_episode), desc="Episodes"):
-            scores_window = deque(maxlen=50) 
+    bs = []
+    ls = []
+
+    agent = Agent(env, model_path, evaluate, num_frame_stack)
+    if (not evaluate):
+        name = 'train'
+    else:
+        name = 'evalutate'
+    with open(f"tests/{name}_{test_name}.txt", "w+") as f: 
+        for i_episode in range(n_episode):
+            max_score = 0
             score = 0
             agent.reinitialisation_episode()
-            for i_step in tqdm(range(max_horizon), desc="Action steps"):
+            for i_step in range(max_horizon):
                 if(render):
                     env.render()
                 action = agent.take_action(eps)
                 eps = max(eps*eps_decay,eps_end)
                 score += agent.reward
-                scores_window.append(score) ## save the most recent score
+                if score > max_score:
+                    max_score = score
                 boo = agent.learn_from_action(action)
                 if boo == True:
                     break
-                print(f'\rEpisode {i_episode}\tAverage Score {np.mean(scores_window)}')
-                if i_episode %100==0 and i_episode>0:
-                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/checkpoint_{i_episode}{test_name}.pth')   
-                if np.mean(scores_window)>=800.0:
-                    print(f'\rEpisode {i_episode-100}\tAverage Score {np.mean(scores_window)}')
-                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/checkpoint_{i_episode}{test_name}.pth')
-            f.writelines(f"{str(score)}\n")
-            scores.append(score)
-    torch.save(agent.estimate_network.state_dict(),f'checkpoint.pth')         
+                print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}', end="\r", flush=True)
+                if i_episode %50==0 and i_episode>0:
+                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/checkpoint_{i_episode}_{test_name}.pth')   
+                if max_score>=800.0:
+                    print(f'\rEpisode {i_episode}\with excpetional Max Score {max_score}\ End Score {score}')
+                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/Score_800_checkpoint_{i_episode}_{test_name}.pth')
+            print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}')
+            f.writelines(f"{str(max_score)} {str(score)}\n")
+    torch.save(agent.estimate_network.state_dict(),f'checkpoint_final_{test_name}.pth')         
     env.close()
     return scores
 
 
 
-def evaluate(path_model):
-    model = Q_model()
-    model.load_state_dict(torch.load(path_model))
-    model.eval()
-    obs = env.reset()
-    frame = deque(maxlen=num_frame_stack)
-    for i in range(num_frame_stack):
-        frame.appendleft(to_grey(obs))    
-    reward_total = 0
-    for i in tqdm(range(100*max_horizon)):
-        env.render()
-        proba = np.random.uniform(0, 1)
-        stack = stack_to_vector(frame)
-        Q_current = model(stack)
-        greedy_ind = np.argmax(Q_current.detach().numpy())
-        if (proba > 0.9):
-            action = all_actions[greedy_ind]
-            obs_next, reward, done, info = env.step(action)
-            reward_total += reward
-        else :
-            action_ind = np.random.randint(0, nb_actions)
-            action =  all_actions[action_ind]
-            obs_next, reward, done, info = env.step(action)
-            reward_total += reward
-        frame.appendleft(to_grey(obs_next))
-        if done == True:
-            print('done = true')
-
-    return (reward_total, i)
-
-
-
 def read_score(path):
-    scores = []
+    max_scores = []
+    end_scores = []
     with open(path, "r") as f: 
             for line in f:
-                scores.append(float(line))
+                s = line.split()
+                max_scores.append(float(s[0]))
+                end_scores.append(float(s[1]))
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)),scores)
-    plt.ylabel('Score')
+    plt.plot(np.arange(len(max_scores)),max_scores, label='Max Scores')
+    plt.plot(np.arange(len(end_scores)),end_scores, label='End Scores')
+    plt.ylabel('Scores')
     plt.xlabel('Epsiode #')
+    plt.legend()
     plt.show()
         
 
@@ -136,5 +118,10 @@ def read_score(path):
 if __name__ == "__main__":
     args = parse_args()
     test_name = args.test_name
+    evaluate = args.evaluate
     scores =train()
-    read_score(f"test_{test_name}.txt")
+    if (not evaluate):
+        name = 'train'
+    else:
+        name = 'evalutate'
+    read_score(f"tests/{name}_{test_name}.txt")
