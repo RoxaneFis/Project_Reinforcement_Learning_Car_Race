@@ -15,7 +15,7 @@ import random
 from Model import Q_model
 
 
-all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0], [0.2, 0])])
+all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0.5, 0], [0.2, 0.6, 0])])
 nb_actions = len(all_actions)
 memory_size = int(1e5)
 

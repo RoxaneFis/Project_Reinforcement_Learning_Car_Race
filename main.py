@@ -60,9 +60,6 @@ def train():
     learning_rate = args.learning_rate 
     tau = args.tau
 
-    bs = []
-    ls = []
-
     agent = Agent(env, model_path, evaluate, num_frame_stack, batch_size,learning_rate, tau)
     if (not evaluate):
         name = 'train'
@@ -87,9 +84,9 @@ def train():
                 print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}', end="\r", flush=True)
                 if i_episode %50==0 and i_episode>0:
                     torch.save(agent.estimate_network.state_dict(),f'checkpoints/checkpoint_{i_episode}_{test_name}.pth')   
-                if max_score>=850.0:
+                if max_score>=900.0:
                     print(f'\rEpisode {i_episode}\with excpetional Max Score {max_score}\ End Score {score}')
-                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/Score_800_checkpoint_{i_episode}_{test_name}.pth')
+                    torch.save(agent.estimate_network.state_dict(),f'checkpoints/Score_850_checkpoint_{i_episode}_{test_name}.pth')
             print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}')
             f.writelines(f"{str(max_score)} {str(score)}\n")
     torch.save(agent.estimate_network.state_dict(),f'checkpoint_final_{test_name}.pth')         
