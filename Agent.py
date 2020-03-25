@@ -14,17 +14,13 @@ import random
 
 from Model import Q_model
 
-
-all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0.5, 0], [0.2, 0.6, 0])])
-nb_actions = len(all_actions)
-memory_size = int(1e5)
-
-
 #SOURCE : https://medium.com/@unnatsingh/deep-q-network-with-pytorch-d1ca6f40bfda
 #ReplayBuffer, soft_update are taken from this source.
 
-
+all_actions = np.array( [k for k in it.product([-1, 0, 1], [1, 0], [0.3, 0])])
+nb_actions = len(all_actions)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+memory_size = int(1e5)
 
 def stack_to_vector(deque : deque):
     array = np.array(deque)
