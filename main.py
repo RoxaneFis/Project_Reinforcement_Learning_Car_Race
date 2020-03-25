@@ -15,7 +15,10 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from Model import Q_model
-from Agent import Agent, ReplayMemory, all_actions,nb_actions, to_grey, stack_to_vector
+from Agent import Agent, all_actions,nb_actions, to_grey, stack_to_vector
+
+env_name = "CarRacing-v0"
+env = gym.make(env_name)
 
 def parse_args():
     """Parse input arguments."""
@@ -27,20 +30,16 @@ def parse_args():
     parser.add_argument('--gamma', type=float, help='gamma', default=0.9)
     parser.add_argument('--eps', type=float, default=1.0)
     parser.add_argument('--eps_decay', type=float, default=0.996)
-    parser.add_argument('--eps_end', type=float, default=0.01)
+    parser.add_argument('--eps_end', type=float, default=0.01)   
+    parser.add_argument('--learning_rate', type=float, default=0.001)
+    parser.add_argument('--tau', type=float, default=1e-3)
     parser.add_argument('--model_path', type=str, default = None)
     parser.add_argument('--render', type=bool, default=False)
     parser.add_argument('--evaluate', type=bool, default=False)
+    parser.add_argument('--batch_size', type=int, default=5)
+
     args = parser.parse_args()
     return args
-
-np.random.RandomState(42)
-scores = [] # list containing score from each episode
-
-
-env_name = "CarRacing-v0"
-env = gym.make(env_name)
-model_path = None
 
 
 def train():
@@ -57,11 +56,14 @@ def train():
     model_path = args.model_path
     render = args.render
     evaluate = args.evaluate
+    batch_size= args.batch_size
+    learning_rate = args.learning_rate 
+    tau = args.tau
 
     bs = []
     ls = []
 
-    agent = Agent(env, model_path, evaluate, num_frame_stack)
+    agent = Agent(env, model_path, evaluate, num_frame_stack, batch_size,learning_rate, tau)
     if (not evaluate):
         name = 'train'
     else:
@@ -79,42 +81,47 @@ def train():
                 score += agent.reward
                 if score > max_score:
                     max_score = score
-                boo = agent.learn_from_action(action)
+                boo = agent.learn_from_action(action, gamma)
                 if boo == True:
                     break
                 print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}', end="\r", flush=True)
                 if i_episode %50==0 and i_episode>0:
                     torch.save(agent.estimate_network.state_dict(),f'checkpoints/checkpoint_{i_episode}_{test_name}.pth')   
-                if max_score>=800.0:
+                if max_score>=850.0:
                     print(f'\rEpisode {i_episode}\with excpetional Max Score {max_score}\ End Score {score}')
                     torch.save(agent.estimate_network.state_dict(),f'checkpoints/Score_800_checkpoint_{i_episode}_{test_name}.pth')
             print(f'\rEpisode {i_episode} || Max Score {max_score} || End Score {score}')
             f.writelines(f"{str(max_score)} {str(score)}\n")
     torch.save(agent.estimate_network.state_dict(),f'checkpoint_final_{test_name}.pth')         
     env.close()
-    return scores
-
 
 
 def read_score(path):
     max_scores = []
     end_scores = []
+    nb_success = 0
     with open(path, "r") as f: 
             for line in f:
                 s = line.split()
                 max_scores.append(float(s[0]))
+                if (float(s[0]) >= 900):
+                    nb_success = nb_success+1
                 end_scores.append(float(s[1]))
     fig = plt.figure()
+
     ax = fig.add_subplot(111)
+    ax.text(10, 750, f'#Success :{nb_success}', style='italic',
+        bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+    x = np.linspace(0, len(max_scores), 1000)
+    plt.plot(x, 900+0*x, '-r') 
     plt.plot(np.arange(len(max_scores)),max_scores, label='Max Scores')
     plt.plot(np.arange(len(end_scores)),end_scores, label='End Scores')
-    plt.ylabel('Scores')
+    plt.ylabel('Rewards')
     plt.xlabel('Epsiode #')
     plt.legend()
     plt.show()
         
-
-        
+   
 if __name__ == "__main__":
     args = parse_args()
     test_name = args.test_name

@@ -5,14 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import itertools as it
 
-actions = np.array( [k for k in it.product([-1, 0, 1], [0.9, 0], [0.3, 0])])
-nb_actions = len(actions)
-
 class Unflatten(nn.Module):
-    """
-    An Unflatten module receives an input of shape (N, C*H*W) and reshapes it
-    to produce an output of shape (N, C, H, W).
-    """
     def __init__(self, N=-1, C=4,H=96, W=96):
         super(Unflatten, self).__init__()
         self.N = N
@@ -24,12 +17,12 @@ class Unflatten(nn.Module):
 
 class Flatten(nn.Module):
     def forward(self, x):
-        N, C, H, W = x.size() # read in N, C, H, W
-        return x.view(N, -1)  # "flatten" the C * H * W values into a single vector per image
+        N, C, H, W = x.size() 
+        return x.view(N, -1)  
 
 
 class Q_model(nn.Module):
-    def __init__(self, input_dim=4,output_dim=nb_actions, trainable=True):
+    def __init__(self, input_dim=4,output_dim=12):
         super(Q_model,self).__init__()
         def size_out(in_size, kernel_size, stride):
             return (in_size - (kernel_size - 1) - 1) // stride  + 1
