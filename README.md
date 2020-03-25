@@ -22,3 +22,5 @@ python3 main.py + --<ARG_NAME> <ARG_VALUE><br>
 - batch_size : number of batch when the network is updated
 
 
+#### Example to run:
+python3 main.py --test_name test --n_episode 20 --model_path final_model.pth --evaluate True --render True
