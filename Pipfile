@@ -22,7 +22,7 @@ torchvision = "*"
 graphviz = "*"
 pandas = "*"
 torchviz = "*"
-gym = "*"py
+gym = "*"
 scikit-image = "*"
 box2d-py = "*"
 

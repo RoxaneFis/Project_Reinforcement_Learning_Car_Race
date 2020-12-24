@@ -3,7 +3,7 @@
 We present and evaluate a deep reinforcement learning method on the *CarRacing-v0* environment provided by OpenAI Gym. The difficulty of the game lies in handling very large state and action spaces to learn the optimal policy. Our approach is based on Deep Q-learning in order to approximate the value function, together with a simplification of the action space and state space.
 
 Provided environement : 
-![](environment_example.png)
+![](images/environment_example.png)
 
 #### In order to train/test a model: <br>
 In a terminal:
