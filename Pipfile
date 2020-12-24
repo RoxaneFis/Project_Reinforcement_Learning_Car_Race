@@ -22,7 +22,9 @@ torchvision = "*"
 graphviz = "*"
 pandas = "*"
 torchviz = "*"
-gym = "*"
+gym = "*"py
+scikit-image = "*"
+box2d-py = "*"
 
 [requires]
 python_version = "3.6.5"

@@ -6,9 +6,25 @@ Provided environement :
 ![](environment_example.png)
 
 #### In order to train/test a model: <br>
-Run in a terminal:<br>
-python3 main.py + --<ARG_NAME> <ARG_VALUE><br>
-<br>
+In a terminal:
+* Place you in the virtual environment :
+```js
+pipenv shell
+pipenv install --skip-lock        
+```
+* Run the reinforcement learning algorithm:
+```js
+python3 main.py + --<ARG_NAME> <ARG_VALUE>
+```
+
+For example :
+```js
+
+python3 main.py --test_name test --n_episode 20 --model_path final_model.pth --evaluate True --render True
+
+```
+
+
 
 
 #### The <ARG_NAME> are:
@@ -28,5 +44,3 @@ python3 main.py + --<ARG_NAME> <ARG_VALUE><br>
 - batch_size : number of batch when the network is updated
 
 
-#### Example to run:
-python3 main.py --test_name test --n_episode 20 --model_path final_model.pth --evaluate True --render True
